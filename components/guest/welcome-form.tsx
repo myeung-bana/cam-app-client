@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useGuestSession } from "@/contexts/guest-session-context";
-import { enterJoin } from "@/lib/functions/join";
+import { enterJoin, resolveJoin } from "@/lib/functions/join";
 import {
   buildSessionFromEnter,
   entryStatePath,
@@ -35,6 +35,13 @@ export function WelcomeForm({
 
     setLoading(true);
     try {
+      const resolved = await resolveJoin(joinCode, preview);
+      if (resolved.entryState === "countdown" && !preview) {
+        toast.error("This event hasn't started yet — check back at the start time.");
+        router.replace(entryStatePath(joinCode, "countdown"));
+        return;
+      }
+
       const result = await enterJoin({
         joinCode,
         displayName: displayName.trim() || undefined,

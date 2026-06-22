@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { resolveJoin } from "@/lib/functions/join";
 import { entryStatePath } from "@/lib/auth/guest-session";
+import { isValidJoinCode } from "@/lib/utils/join-code";
 
 export function ManualJoinForm() {
   const router = useRouter();
@@ -15,8 +16,8 @@ export function ManualJoinForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = code.trim();
-    if (trimmed.length < 4) {
-      toast.error("Enter a valid event code");
+    if (!isValidJoinCode(trimmed)) {
+      toast.error("Enter the full 8–12 character code exactly as shown");
       return;
     }
 
@@ -29,9 +30,9 @@ export function ManualJoinForm() {
         return;
       }
       router.push(entryStatePath(trimmed, result.entryState));
-    } catch {
+    } catch (err) {
       setFailures((n) => n + 1);
-      toast.error("Could not verify code");
+      toast.error(err instanceof Error ? err.message : "Could not verify code");
     } finally {
       setLoading(false);
     }
@@ -43,17 +44,19 @@ export function ManualJoinForm() {
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6">
       <h1 className="text-2xl font-semibold text-white">Enter event code</h1>
       <p className="mt-2 text-sm text-white/60">
-        Type the code from your invitation or table card.
+        Type the code from your invitation or table card. Codes are case-sensitive.
       </p>
       <form onSubmit={(e) => void handleSubmit(e)} className="mt-8 space-y-4">
         <input
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onChange={(e) => setCode(e.target.value)}
           disabled={locked || loading}
-          placeholder="JOIN CODE"
-          className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-center text-xl tracking-widest text-white outline-none focus:border-white/40"
-          autoCapitalize="characters"
+          placeholder="Join code"
+          className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-center font-mono text-lg tracking-wide text-white outline-none focus:border-white/40"
+          autoCapitalize="off"
+          autoCorrect="off"
           autoComplete="off"
+          spellCheck={false}
         />
         {locked ? (
           <p className="text-center text-sm text-amber-400">

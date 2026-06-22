@@ -15,10 +15,7 @@ export async function callFunction<T>(
   path: string,
   options: CallFunctionOptions = {}
 ): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_FUNCTIONS_URL;
-  if (!base) {
-    throw new Error("NEXT_PUBLIC_FUNCTIONS_URL is not configured");
-  }
+  const base = getFunctionsUrl();
 
   const url = new URL(`${base.replace(/\/$/, "")}${path}`);
   if (options.query) {
@@ -43,8 +40,35 @@ export async function callFunction<T>(
 
   const envelope = (await response.json().catch(() => ({}))) as FunctionEnvelope<T>;
   if (!response.ok || !envelope.ok || envelope.data === undefined) {
-    throw new Error(envelope.error ?? "Request failed");
+    throw new Error(
+      envelope.error ??
+        (response.status === 400
+          ? "Invalid join code — check the code and try again"
+          : "Request failed")
+    );
   }
 
   return envelope.data;
+}
+
+function getFunctionsUrl(): string {
+  // Browser calls use same-origin proxy to avoid Nhost Functions CORS preflight.
+  if (typeof window !== "undefined") {
+    return "/api/functions";
+  }
+
+  if (process.env.NEXT_PUBLIC_FUNCTIONS_URL) {
+    return process.env.NEXT_PUBLIC_FUNCTIONS_URL.replace(/\/$/, "");
+  }
+
+  const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN;
+  const region = process.env.NEXT_PUBLIC_NHOST_REGION;
+
+  if (subdomain && region) {
+    return `https://${subdomain}.functions.${region}.nhost.run/v1`;
+  }
+
+  throw new Error(
+    "Missing NEXT_PUBLIC_FUNCTIONS_URL or NEXT_PUBLIC_NHOST_SUBDOMAIN + NEXT_PUBLIC_NHOST_REGION"
+  );
 }

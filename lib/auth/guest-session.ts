@@ -118,9 +118,9 @@ export function entryStatePath(
   const previewQuery = preview ? "?preview=true" : "";
   switch (state) {
     case "live":
-      return `/j/${joinCode}/welcome${previewQuery}`;
+      return `/j/${encodeURIComponent(joinCode)}/welcome${previewQuery}`;
     case "countdown":
-      return `/states/countdown?joinCode=${joinCode}${preview ? "&preview=true" : ""}`;
+      return `/states/countdown?joinCode=${encodeURIComponent(joinCode)}${preview ? "&preview=true" : ""}`;
     case "ended":
       return `/states/ended?joinCode=${joinCode}`;
     case "disabled":
