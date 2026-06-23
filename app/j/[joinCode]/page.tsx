@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { GuestSessionProvider } from "@/contexts/guest-session-context";
 import { JoinResolver } from "@/components/guest/join-resolver";
 
 export default async function JoinCodePage({
@@ -10,10 +9,8 @@ export default async function JoinCodePage({
   const { joinCode } = await params;
 
   return (
-    <GuestSessionProvider>
-      <Suspense fallback={<div className="flex min-h-svh items-center justify-center text-white/60">Loading…</div>}>
-        <JoinResolver joinCode={joinCode} />
-      </Suspense>
-    </GuestSessionProvider>
+    <Suspense fallback={<div className="flex min-h-svh items-center justify-center text-white/60">Loading…</div>}>
+      <JoinResolver joinCode={joinCode} />
+    </Suspense>
   );
 }

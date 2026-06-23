@@ -20,6 +20,8 @@ interface GuestSessionContextValue {
   session: GuestSessionRecord | null;
   event: PublicEvent | null;
   accessToken: string | null;
+  /** False until sessionStorage has been read on the client — avoids SSR/client HTML drift. */
+  hydrated: boolean;
   setSession: (session: GuestSessionRecord) => void;
   setEvent: (event: PublicEvent | null) => void;
   refreshToken: () => Promise<string | null>;
@@ -41,10 +43,15 @@ export function GuestSessionProvider({
   const [event, setEvent] = useState<PublicEvent | null>(initialEvent);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [activeChallengeId, setActiveChallengeId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = readGuestSession();
-    if (stored) setSessionState(stored);
+    if (stored) {
+      setSessionState(stored);
+      setAccessToken(stored.accessToken);
+    }
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -80,6 +87,7 @@ export function GuestSessionProvider({
       session,
       event,
       accessToken,
+      hydrated,
       setSession,
       setEvent,
       refreshToken,
@@ -91,6 +99,7 @@ export function GuestSessionProvider({
       session,
       event,
       accessToken,
+      hydrated,
       setSession,
       refreshToken,
       signOut,

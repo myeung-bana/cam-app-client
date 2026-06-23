@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { GuestSessionProvider } from "@/contexts/guest-session-context";
 import { GuestApolloProvider } from "@/components/providers/guest-apollo-provider";
+import { usePathname } from "next/navigation";
 import { GuestTabNav } from "@/components/guest/guest-tab-nav";
 import { useHeartbeat } from "@/hooks/use-heartbeat";
 import { MilestoneToasts } from "@/components/guest/milestone-toasts";
@@ -16,6 +17,12 @@ function EventShellInner({
   joinCode: string;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const showTabNav =
+    pathname.includes("/camera") ||
+    pathname.includes("/gallery") ||
+    pathname.includes("/challenges");
+
   useHeartbeat();
   return (
     <>
@@ -23,7 +30,7 @@ function EventShellInner({
       <OfflineUploadReplay />
       <InstallHint />
       {children}
-      <GuestTabNav joinCode={joinCode} />
+      {showTabNav && <GuestTabNav joinCode={joinCode} />}
     </>
   );
 }

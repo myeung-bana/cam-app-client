@@ -15,14 +15,7 @@ export async function callFunction<T>(
   path: string,
   options: CallFunctionOptions = {}
 ): Promise<T> {
-  const base = getFunctionsUrl();
-
-  const url = new URL(`${base.replace(/\/$/, "")}${path}`);
-  if (options.query) {
-    for (const [key, value] of Object.entries(options.query)) {
-      url.searchParams.set(key, value);
-    }
-  }
+  const url = buildFunctionUrl(path, options.query);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -31,7 +24,7 @@ export async function callFunction<T>(
     headers.Authorization = `Bearer ${options.accessToken}`;
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     method: options.method ?? "GET",
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -49,6 +42,28 @@ export async function callFunction<T>(
   }
 
   return envelope.data;
+}
+
+function buildFunctionUrl(
+  path: string,
+  query?: Record<string, string>
+): string {
+  const base = getFunctionsUrl().replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const href = `${base}${normalizedPath}`;
+
+  const url =
+    typeof window !== "undefined"
+      ? new URL(href, window.location.origin)
+      : new URL(href);
+
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  return url.toString();
 }
 
 function getFunctionsUrl(): string {

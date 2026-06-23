@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils/cn";
 const MAX_VIDEO_SECONDS = 15;
 
 export function CameraRoom({ joinCode }: { joinCode: string }) {
-  const { session, event, accessToken, activeChallengeId, refreshToken } =
+  const { session, event, accessToken, activeChallengeId, refreshToken, hydrated } =
     useGuestSession();
   const { videoRef, ready, error, flip } = useCamera();
   const [filterId, setFilterId] = useState("none");
@@ -112,6 +112,14 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
       setUploading(false);
     }
   };
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-[#0a0a0a] text-white/60">
+        Loading camera…
+      </div>
+    );
+  }
 
   if (!session) {
     return (

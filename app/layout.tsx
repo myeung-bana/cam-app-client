@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
+import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -35,8 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} min-h-svh bg-[#0a0a0a] font-sans antialiased`}>
-        {children}
-        <Toaster richColors position="top-center" />
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
