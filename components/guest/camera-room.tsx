@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useGuestSession } from "@/contexts/guest-session-context";
 import { useCamera } from "@/hooks/use-camera";
 import { CAPTURE_FILTERS, capturePhotoFromVideo } from "@/lib/camera/capture";
-import { uploadPhoto } from "@/lib/upload/pipeline";
+import { uploadPhotoWithFallback } from "@/lib/upload/upload-client";
 import { enqueueUpload } from "@/lib/upload/offline-queue";
 import { GuestHeader } from "./guest-header";
 import { cn } from "@/lib/utils/cn";
@@ -92,7 +92,7 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
         });
         toast.info("Saved offline — will upload when you're back online");
       } else if (previewBlob.type.startsWith("image/")) {
-        await uploadPhoto({
+        await uploadPhotoWithFallback({
           blob: previewBlob,
           accessToken: token,
           eventId: session.eventId,

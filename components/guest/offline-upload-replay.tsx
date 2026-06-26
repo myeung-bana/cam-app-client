@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { useGuestSession } from "@/contexts/guest-session-context";
 import { listPendingUploads, removePendingUpload } from "@/lib/upload/offline-queue";
-import { uploadPhoto } from "@/lib/upload/pipeline";
+import { uploadPhotoWithFallback } from "@/lib/upload/upload-client";
 
 export function OfflineUploadReplay() {
   const { refreshToken } = useGuestSession();
@@ -22,7 +22,7 @@ export function OfflineUploadReplay() {
       for (const item of pending) {
         try {
           if (item.blob.type.startsWith("image/")) {
-            await uploadPhoto({
+            await uploadPhotoWithFallback({
               blob: item.blob,
               accessToken: token,
               eventId: item.eventId,

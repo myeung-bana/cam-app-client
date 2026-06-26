@@ -1,15 +1,18 @@
+import { getNhostBrowserClient } from "@/lib/nhost-client";
 import { getStorageBucket, getStorageUrl } from "@/lib/config/nhost";
-
-export function buildStoragePath(
-  eventId: string,
-  sessionId: string,
-  fileName: string
-): string {
-  return `events/${eventId}/sessions/${sessionId}/${fileName}`;
-}
 
 export function buildPublicFileUrl(fileId: string): string {
   return `${getStorageUrl()}/files/${fileId}`;
+}
+
+export class StorageUploadError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = "StorageUploadError";
+  }
 }
 
 export async function uploadToNhostStorage(
@@ -18,39 +21,45 @@ export async function uploadToNhostStorage(
   mimeType: string,
   accessToken: string
 ): Promise<{ id: string }> {
-  const boundary = `----MemoBoundary${crypto.randomUUID().replace(/-/g, "")}`;
   const bucket = getStorageBucket();
-  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const flatFileName = fileName.replace(/[/\\]/g, "_");
+  const uploadFile = new File([file], flatFileName, { type: mimeType });
 
-  const preamble = new TextEncoder().encode(
-    `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="bucket-id"\r\n\r\n` +
-      `${bucket}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file[]"; filename="${fileName}"\r\n` +
-      `Content-Type: ${mimeType}\r\n\r\n`
-  );
-  const epilogue = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
-  const body = new Blob([preamble, fileBytes, epilogue]);
+  try {
+    const nhost = getNhostBrowserClient();
+    const response = await nhost.storage.uploadFiles(
+      {
+        "bucket-id": bucket,
+        "file[]": [uploadFile],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
 
-  const response = await fetch(`${getStorageUrl()}/files`, {
-    method: "POST",
-    headers: {
-      "Content-Type": `multipart/form-data; boundary=${boundary}`,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body,
-  });
+    const id = response.body.processedFiles?.[0]?.id;
+    if (!id) {
+      throw new StorageUploadError("Storage upload returned no file id");
+    }
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Storage upload failed");
+    return { id };
+  } catch (error) {
+    if (error instanceof StorageUploadError) throw error;
+
+    const status =
+      error && typeof error === "object" && "status" in error
+        ? Number((error as { status: number }).status)
+        : undefined;
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Storage upload failed — check bucket rules for the guest role";
+
+    throw new StorageUploadError(
+      status ? `Storage upload failed (${status}): ${message}` : message,
+      status
+    );
   }
-
-  const json = (await response.json()) as {
-    processedFiles?: Array<{ id: string }>;
-  };
-  const id = json.processedFiles?.[0]?.id;
-  if (!id) throw new Error("Storage upload returned no file id");
-  return { id };
 }
