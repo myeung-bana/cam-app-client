@@ -34,7 +34,7 @@ export function OfflineUploadReplay() {
             uploaded++;
           }
         } catch {
-          break;
+          continue;
         }
       }
 

@@ -1,4 +1,5 @@
 import { CameraRoom } from "@/components/guest/camera-room";
+import { CameraErrorBoundary } from "@/components/guest/camera/camera-error-boundary";
 
 export default async function CameraPage({
   params,
@@ -6,5 +7,9 @@ export default async function CameraPage({
   params: Promise<{ joinCode: string }>;
 }) {
   const { joinCode } = await params;
-  return <CameraRoom joinCode={joinCode} />;
+  return (
+    <CameraErrorBoundary>
+      <CameraRoom joinCode={joinCode} />
+    </CameraErrorBoundary>
+  );
 }

@@ -85,6 +85,8 @@ export async function POST(req: NextRequest) {
           storage_file_id: uploaded.id,
           file_type: "photo",
           filter_applied: resolvedFilterId,
+          filter_preset_id: resolvedFilterId,
+          bake_status: "pending",
           challenge_id: resolvedChallengeId,
           is_hidden: false,
           is_starred: false,

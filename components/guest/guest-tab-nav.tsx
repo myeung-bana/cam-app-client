@@ -25,6 +25,7 @@ export function GuestTabNav({ joinCode }: { joinCode: string }) {
             <li key={href} className="flex-1">
               <Link
                 href={path}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-[60px] flex-col items-center justify-center gap-1 text-xs transition-colors",
                   active ? "text-white" : "text-white/50"

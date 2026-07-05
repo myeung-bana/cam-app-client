@@ -6,52 +6,69 @@ import {
   InMemoryCache,
   split,
 } from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
 import { ApolloProvider as BaseApolloProvider } from "@apollo/client/react";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { getMainDefinition } from "@apollo/client/utilities";
 import { createClient } from "graphql-ws";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useGuestSession } from "@/contexts/guest-session-context";
-const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN ?? "";
-const region = process.env.NEXT_PUBLIC_NHOST_REGION ?? "";
-const graphqlUrl =
-  subdomain && region
-    ? `https://${subdomain}.hasura.${region}.nhost.run/v1/graphql`
-    : "https://localhost.hasura.local/v1/graphql";
+import { getGraphqlUrl, isNhostConfigured } from "@/lib/config/nhost";
+
+function resolveGraphqlUrl(): string {
+  if (isNhostConfigured()) {
+    return getGraphqlUrl();
+  }
+  return "https://localhost.hasura.local/v1/graphql";
+}
+
+const graphqlUrl = resolveGraphqlUrl();
 const wsUrl = graphqlUrl.replace("https://", "wss://");
+
+function createStableClient(tokenRef: React.RefObject<string | null>) {
+  const authLink = setContext((_, { headers }) => {
+    const token = tokenRef.current;
+    return {
+      headers: {
+        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    };
+  });
+
+  const httpLink = new HttpLink({ uri: graphqlUrl });
+
+  const wsLink = new GraphQLWsLink(
+    createClient({
+      url: wsUrl,
+      connectionParams: () => {
+        const token = tokenRef.current;
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      },
+    })
+  );
+
+  const link = split(
+    ({ query }) => {
+      const def = getMainDefinition(query);
+      return def.kind === "OperationDefinition" && def.operation === "subscription";
+    },
+    wsLink,
+    authLink.concat(httpLink)
+  );
+
+  return new ApolloClient({ link, cache: new InMemoryCache() });
+}
 
 export function GuestApolloProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useGuestSession();
+  const tokenRef = useRef<string | null>(accessToken);
 
-  const client = useMemo(() => {
-    const headers: Record<string, string> = accessToken
-      ? { Authorization: `Bearer ${accessToken}` }
-      : {};
-
-    const httpLink = new HttpLink({ uri: graphqlUrl, headers });
-
-    if (!accessToken) {
-      return new ApolloClient({ link: httpLink, cache: new InMemoryCache() });
-    }
-
-    const wsLink = new GraphQLWsLink(
-      createClient({
-        url: wsUrl,
-        connectionParams: { headers },
-      })
-    );
-
-    const link = split(
-      ({ query }) => {
-        const def = getMainDefinition(query);
-        return def.kind === "OperationDefinition" && def.operation === "subscription";
-      },
-      wsLink,
-      httpLink
-    );
-
-    return new ApolloClient({ link, cache: new InMemoryCache() });
+  useEffect(() => {
+    tokenRef.current = accessToken;
   }, [accessToken]);
+
+  const client = useMemo(() => createStableClient(tokenRef), []);
 
   return <BaseApolloProvider client={client}>{children}</BaseApolloProvider>;
 }

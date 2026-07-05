@@ -1,32 +1,3 @@
-import type { CaptureFilter } from "@/lib/types";
-
-export const CAPTURE_FILTERS: CaptureFilter[] = [
-  { id: "none", label: "Original", css: "" },
-  { id: "warm", label: "Warm", css: "sepia(0.3) saturate(1.4)" },
-  { id: "mono", label: "Mono", css: "grayscale(1) contrast(1.1)" },
-  { id: "fade", label: "Fade", css: "opacity(0.85) brightness(1.1) saturate(0.8)" },
-  { id: "vivid", label: "Vivid", css: "saturate(1.8) contrast(1.1)" },
-];
-
-export function applyFilterToCanvas(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  filterCss: string
-) {
-  if (!filterCss) return;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const temp = document.createElement("canvas");
-  temp.width = width;
-  temp.height = height;
-  const tempCtx = temp.getContext("2d");
-  if (!tempCtx) return;
-  tempCtx.filter = filterCss;
-  tempCtx.putImageData(imageData, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  ctx.drawImage(temp, 0, 0);
-}
-
 export async function capturePhotoFromVideo(
   video: HTMLVideoElement,
   filterCss: string
@@ -39,10 +10,8 @@ export async function capturePhotoFromVideo(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
+  if (filterCss) ctx.filter = filterCss;
   ctx.drawImage(video, 0, 0, width, height);
-  if (filterCss) {
-    applyFilterToCanvas(ctx, width, height, filterCss);
-  }
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

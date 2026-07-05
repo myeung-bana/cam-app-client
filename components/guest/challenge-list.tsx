@@ -1,54 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useGuestSession } from "@/contexts/guest-session-context";
-import { executeGraphQL } from "@/lib/graphql/execute";
-import { GET_EVENT_CHALLENGES } from "@/lib/graphql/challenges/queries";
-import { GET_SESSION_COMPLETIONS } from "@/lib/graphql/challenge-completions/mutations";
-import type { Challenge } from "@/lib/types";
+import { useEventChallenges } from "@/hooks/use-event-challenges";
 import { cn } from "@/lib/utils/cn";
 
 export function ChallengeList() {
-  const { session, accessToken, refreshToken, setActiveChallengeId, activeChallengeId } =
-    useGuestSession();
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const { setActiveChallengeId, activeChallengeId } = useGuestSession();
+  const { challenges, completedIds, loading, error } = useEventChallenges();
 
-  useEffect(() => {
-    if (!session?.eventId) return;
-    let cancelled = false;
+  if (loading) {
+    return (
+      <div className="space-y-3 p-4 pb-28" role="status" aria-live="polite">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/5"
+          />
+        ))}
+      </div>
+    );
+  }
 
-    async function load() {
-      if (!session) return;
-      const token = (await refreshToken()) ?? accessToken;
-      if (!token) return;
-      const [challengeData, completionData] = await Promise.all([
-        executeGraphQL<{ challenges: Challenge[] }>(
-          GET_EVENT_CHALLENGES,
-          { eventId: session.eventId },
-          token
-        ),
-        executeGraphQL<{
-          challenge_completions: Array<{ challenge_id: string }>;
-        }>(GET_SESSION_COMPLETIONS, { sessionId: session.guestSessionId }, token),
-      ]);
-      if (cancelled) return;
-      setChallenges(challengeData.challenges);
-      setCompleted(
-        new Set(completionData.challenge_completions.map((c) => c.challenge_id))
-      );
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [session, accessToken, refreshToken]);
+  if (error) {
+    return (
+      <p className="p-6 text-center text-red-400" role="alert">
+        {error}
+      </p>
+    );
+  }
 
   return (
     <ul className="space-y-3 p-4 pb-28">
       {challenges.map((c) => {
-        const done = completed.has(c.id);
+        const done = completedIds.has(c.id);
         const active = activeChallengeId === c.id;
         return (
           <li
@@ -68,14 +52,10 @@ export function ChallengeList() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() =>
-                      setActiveChallengeId(active ? null : c.id)
-                    }
+                    onClick={() => setActiveChallengeId(active ? null : c.id)}
                     className={cn(
                       "mt-3 rounded-full px-4 py-2 text-sm font-medium",
-                      active
-                        ? "bg-white text-black"
-                        : "bg-white/15 text-white"
+                      active ? "bg-white text-black" : "bg-white/15 text-white"
                     )}
                   >
                     {active ? "Tagged for next shot" : "Tag next capture"}

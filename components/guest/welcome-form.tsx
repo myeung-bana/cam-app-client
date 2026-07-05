@@ -27,11 +27,15 @@ export function WelcomeForm({
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [consentError, setConsentError] = useState<string | null>(null);
+
   async function handleEnter() {
     if (!consent) {
+      setConsentError("Please accept the privacy notice to continue.");
       toast.error("Please accept the privacy notice to continue.");
       return;
     }
+    setConsentError(null);
 
     setLoading(true);
     try {
@@ -98,7 +102,11 @@ export function WelcomeForm({
           <input
             type="checkbox"
             checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
+            onChange={(e) => {
+              setConsent(e.target.checked);
+              if (e.target.checked) setConsentError(null);
+            }}
+            aria-describedby={consentError ? "consent-error" : undefined}
             className="mt-1"
           />
           <span>
@@ -106,6 +114,11 @@ export function WelcomeForm({
             the event gallery per the organiser&apos;s privacy policy.
           </span>
         </label>
+        {consentError && (
+          <p id="consent-error" className="text-sm text-red-400" role="alert">
+            {consentError}
+          </p>
+        )}
 
         <button
           type="button"

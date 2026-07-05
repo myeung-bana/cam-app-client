@@ -51,25 +51,25 @@ export interface GuestSessionRecord {
 
 export interface Challenge {
   id: string;
-  event_id: string;
+  eventId: string;
   title: string;
   description: string;
   icon: string;
-  is_required: boolean;
-  sort_order: number;
+  isRequired: boolean;
+  sortOrder: number;
 }
 
 export interface GuestMedia {
   id: string;
-  event_id: string;
-  file_url: string;
-  storage_file_id?: string | null;
-  file_type: "photo" | "video";
-  filter_applied: string | null;
-  challenge_id: string | null;
-  uploaded_at: string;
-  is_hidden: boolean;
-  is_starred: boolean;
+  eventId: string;
+  fileUrl: string;
+  storageFileId?: string | null;
+  fileType: "photo" | "video";
+  filterApplied: string | null;
+  challengeId: string | null;
+  uploadedAt: string;
+  isHidden: boolean;
+  isStarred: boolean;
 }
 
 export interface CaptureFilter {
