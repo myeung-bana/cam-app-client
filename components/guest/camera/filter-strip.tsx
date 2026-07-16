@@ -5,35 +5,37 @@ import { FILTER_PRESETS } from "@/lib/camera/filter-presets";
 import { cn } from "@/lib/utils/cn";
 
 interface FilterStripProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  ready: boolean;
+  /** Blob URL or data URL of the captured frame (review screen). */
+  imageUrl: string;
   filterId: string;
   onSelect: (id: string) => void;
 }
 
-export function FilterStrip({ videoRef, ready, filterId, onSelect }: FilterStripProps) {
+export function FilterStrip({ imageUrl, filterId, onSelect }: FilterStripProps) {
   const canvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
-  const drawnRef = useRef(false);
+  const drawnForUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!ready || drawnRef.current) return;
-    const video = videoRef.current;
-    if (!video || video.videoWidth === 0) return;
+    if (!imageUrl || drawnForUrlRef.current === imageUrl) return;
 
-    const thumbSize = 48;
-    for (const preset of FILTER_PRESETS) {
-      const canvas = canvasRefs.current.get(preset.id);
-      if (!canvas) continue;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
+    const img = new Image();
+    img.onload = () => {
+      const thumbSize = 48;
+      for (const preset of FILTER_PRESETS) {
+        const canvas = canvasRefs.current.get(preset.id);
+        if (!canvas) continue;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
 
-      canvas.width = thumbSize;
-      canvas.height = thumbSize;
-      if (preset.css) ctx.filter = preset.css;
-      ctx.drawImage(video, 0, 0, thumbSize, thumbSize);
-    }
-    drawnRef.current = true;
-  }, [ready, videoRef]);
+        canvas.width = thumbSize;
+        canvas.height = thumbSize;
+        ctx.filter = preset.css || "none";
+        ctx.drawImage(img, 0, 0, thumbSize, thumbSize);
+      }
+      drawnForUrlRef.current = imageUrl;
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
 
   return (
     <div className="mb-4 flex gap-2 overflow-x-auto px-4 pb-2">

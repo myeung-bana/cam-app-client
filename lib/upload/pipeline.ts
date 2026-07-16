@@ -61,8 +61,6 @@ export async function uploadPhoto(input: UploadPhotoInput): Promise<GuestMedia> 
           storage_file_id: uploaded.id,
           file_type: "photo",
           filter_applied: input.filterId === "none" ? null : input.filterId,
-          filter_preset_id: input.filterId === "none" ? null : input.filterId,
-          bake_status: "pending",
           challenge_id: input.challengeId ?? null,
           is_hidden: false,
           is_starred: false,

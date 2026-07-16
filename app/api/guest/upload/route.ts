@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { executeGraphQL } from "@/lib/graphql/execute";
 import { INSERT_MEDIA } from "@/lib/graphql/media/mutations";
 import { INSERT_CHALLENGE_COMPLETION } from "@/lib/graphql/challenge-completions/mutations";
+import { executeHasuraAdmin } from "@/lib/server/hasura-admin";
 import {
   buildNhostFileUrl,
   isGuestStorageUploadConfigured,
   postMultipartToNhostStorage,
 } from "@/lib/server/nhost-storage-server";
 import {
-  assertGuestSessionAccess,
+  assertGuestSessionForUpload,
   GuestAuthError,
 } from "@/lib/server/verify-guest-upload";
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "file is required" }, { status: 400 });
     }
 
-    await assertGuestSessionAccess(accessToken, eventId, sessionId);
+    await assertGuestSessionForUpload(accessToken, eventId, sessionId);
 
     const fileName = `${randomUUID()}.jpg`;
     const bytes = Buffer.from(await fileEntry.arrayBuffer());
@@ -73,41 +73,31 @@ export async function POST(req: NextRequest) {
         ? challengeId
         : null;
 
-    const data = await executeGraphQL<{
+    const data = await executeHasuraAdmin<{
       insert_media_one: { id: string; file_url: string };
-    }>(
-      INSERT_MEDIA,
-      {
-        object: {
-          event_id: eventId,
-          session_id: sessionId,
-          file_url: fileUrl,
-          storage_file_id: uploaded.id,
-          file_type: "photo",
-          filter_applied: resolvedFilterId,
-          filter_preset_id: resolvedFilterId,
-          bake_status: "pending",
-          challenge_id: resolvedChallengeId,
-          is_hidden: false,
-          is_starred: false,
-        },
+    }>(INSERT_MEDIA, {
+      object: {
+        event_id: eventId,
+        session_id: sessionId,
+        file_url: fileUrl,
+        storage_file_id: uploaded.id,
+        file_type: "photo",
+        filter_applied: resolvedFilterId,
+        challenge_id: resolvedChallengeId,
+        is_hidden: false,
+        is_starred: false,
       },
-      accessToken
-    );
+    });
 
     if (resolvedChallengeId) {
       try {
-        await executeGraphQL(
-          INSERT_CHALLENGE_COMPLETION,
-          {
-            object: {
-              challenge_id: resolvedChallengeId,
-              session_id: sessionId,
-              media_id: data.insert_media_one.id,
-            },
+        await executeHasuraAdmin(INSERT_CHALLENGE_COMPLETION, {
+          object: {
+            challenge_id: resolvedChallengeId,
+            session_id: sessionId,
+            media_id: data.insert_media_one.id,
           },
-          accessToken
-        );
+        });
       } catch {
         // Non-fatal
       }

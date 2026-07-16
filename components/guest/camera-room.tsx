@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useGuestSession } from "@/contexts/guest-session-context";
 import { useCamera } from "@/hooks/use-camera";
 import { getFilterPreset } from "@/lib/camera/filter-presets";
+import { applyFilterToImageBlob } from "@/lib/camera/capture";
 import { uploadPhotoWithFallback } from "@/lib/upload/upload-client";
 import { enqueueUpload } from "@/lib/upload/offline-queue";
 import { GuestHeader } from "./guest-header";
 import { CameraViewfinder } from "./camera/camera-viewfinder";
 import { CameraControls } from "./camera/camera-controls";
-import { FilterStrip } from "./camera/filter-strip";
 import { CapturePreview } from "./camera/capture-preview";
 import { useCapture } from "./camera/use-capture";
 
@@ -32,14 +32,17 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
     clearPreview,
   } = useCapture(videoRef, ready);
 
-  const filterCss = useMemo(() => getFilterPreset(filterId).css, [filterId]);
-
   const activeChallenge = event ? activeChallengeId : null;
 
   const handleCapture = () => {
-    if (mode === "photo") void capturePhoto(filterCss);
+    if (mode === "photo") void capturePhoto("");
     else if (!recording) startVideo();
     else stopVideo();
+  };
+
+  const handleRetake = () => {
+    setFilterId("none");
+    clearPreview();
   };
 
   const handleUpload = async () => {
@@ -47,18 +50,21 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
     setUploading(true);
     try {
       const token = (await refreshToken()) ?? accessToken;
+      const filterCss = getFilterPreset(filterId).css;
+      const uploadBlob = await applyFilterToImageBlob(previewBlob, filterCss);
+
       if (!navigator.onLine) {
         await enqueueUpload({
-          blob: previewBlob,
+          blob: uploadBlob,
           eventId: session.eventId,
           sessionId: session.guestSessionId,
           filterId,
           challengeId: activeChallengeId,
         });
         toast.info("Saved offline — will upload when you're back online");
-      } else if (previewBlob.type.startsWith("image/")) {
+      } else if (uploadBlob.type.startsWith("image/")) {
         await uploadPhotoWithFallback({
-          blob: previewBlob,
+          blob: uploadBlob,
           accessToken: token,
           eventId: session.eventId,
           sessionId: session.guestSessionId,
@@ -69,6 +75,7 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
       } else {
         toast.info("Video upload coming soon — photo uploads are live");
       }
+      setFilterId("none");
       clearPreview();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -100,8 +107,10 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
     return (
       <CapturePreview
         previewUrl={previewUrl}
+        filterId={filterId}
+        onFilterChange={setFilterId}
         uploading={uploading}
-        onRetake={clearPreview}
+        onRetake={handleRetake}
         onUpload={() => void handleUpload()}
       />
     );
@@ -115,14 +124,8 @@ export function CameraRoom({ joinCode }: { joinCode: string }) {
           Challenge active — your next capture will be tagged
         </div>
       )}
-      <CameraViewfinder videoRef={videoRef} filterCss={filterCss} error={error} />
+      <CameraViewfinder videoRef={videoRef} error={error} />
       <div className="absolute bottom-28 left-0 right-0 z-20">
-        <FilterStrip
-          videoRef={videoRef}
-          ready={ready}
-          filterId={filterId}
-          onSelect={setFilterId}
-        />
         <CameraControls
           mode={mode}
           recording={recording}
